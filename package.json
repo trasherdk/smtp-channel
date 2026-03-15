@@ -52,11 +52,11 @@
   },
   "devDependencies": {
     "@types/maildev": "^0.0.7",
-    "dotenv": "^16.4.7",
+    "dotenv": "^17.3.1",
     "@types/node": "^25.5.0",
     "@types/smtp-server": "^3.5.12",
     "maildev": "^2.2.1",
-    "smtp-server": "^3.18.0",
+    "smtp-server": "^3.18.1",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
   }
