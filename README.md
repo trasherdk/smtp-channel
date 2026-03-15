@@ -1,162 +1,89 @@
-![Build Status](https://travis-ci.org/xpepermint/smtp-channel.svg?branch=master)&nbsp;[![NPM Version](https://badge.fury.io/js/smtp-channel.svg)](https://badge.fury.io/js/smtp-channel)&nbsp;[![Dependency Status](https://gemnasium.com/xpepermint/smtp-channel.svg)](https://gemnasium.com/xpepermint/smtp-channel)
-
-# smtp-channel
+# @trasherdk/smtp-channel
 
 > Low level SMTP communication layer.
 
-This is an open source [npm](http://npmjs.com) package from [Node.js](http://nodejs.org). The source code is available on [GitHub](https://github.com/xpepermint/smtp-channel) where you can also find our [issue tracker](https://github.com/xpepermint/smtp-channel/issues).
+This is a maintained fork of [smtp-channel](https://github.com/xpepermint/smtp-channel) by Kristijan Sedlak, which is no longer actively maintained. This fork has been modernized with TypeScript strict mode, ESM-only output, and current tooling.
 
 ## Related Projects
 
-* [smtp-client](https://github.com/xpepermint/smtp-client): Simple, promisified, protocol-based SMTP client.
+- [smtp-client](https://github.com/trasherdk/smtp-client): Simple, promisified, protocol-based SMTP client.
+
+## Changes from the original
+
+- Rewritten as strict TypeScript
+- ESM-only (no CommonJS)
+- Vitest instead of AVA
+- Node.js >= 18
 
 ## Install
 
 ```
-$ npm install --save smtp-channel
+pnpm add @trasherdk/smtp-channel
 ```
 
 ## Example
 
-```js
-import {SMTPChannel} from 'smtp-channel';
+```ts
+import { SMTPChannel } from "@trasherdk/smtp-channel";
 
-(async function() {
-  let handler = console.log;
+const smtp = new SMTPChannel({
+  host: "mx.domain.com",
+  port: 25,
+});
 
-  let smtp = new SMTPChannel({
-    host: 'mx.domain.com',
-    port: 25
-  });
-
-  await s.connect({handler, timeout: 3000});
-  await s.write('EHLO mx.me.com\r\n', {handler});
-  await s.write('QUIT\r\n', {handler});
-
-})().catch(console.error);
+await smtp.connect({ handler: console.log, timeout: 3000 });
+await smtp.write("EHLO mx.me.com\r\n", { handler: console.log });
+await smtp.write("QUIT\r\n", { handler: console.log });
+await smtp.close();
 ```
 
 ## API
 
-**SMTPChannel(options)**
+**SMTPChannel(config)**
 
-> The core SMTP class. This class passes options directly to the [net.connect](https://nodejs.org/api/net.html#net_net_connect_options_connectlistener) or  [tls.connect](https://nodejs.org/api/tls.html#tls_tls_connect_options_callback) methods. Custom available options are listed below.
-
-| Option | Type | Required | Default | Description
-|--------|------|----------|---------|------------
-| secure | Boolean | No | false | When `true` the channel will connect to the SMTP server using TLS.
-| timeout | Integer | No | 0 | A time in milliseconds after the socket is automatically closed (`0` disables the timeout).
-
-**SMTPChannel.prototype.close({timeout})**:Promise;
-
-> Destroys the socket and ensures that no more I/O activity happens on this socket.
+> The core SMTP class. Passes options to [net.connect](https://nodejs.org/api/net.html#net_net_connect_options_connectlistener) or [tls.connect](https://nodejs.org/api/tls.html#tls_tls_connect_options_callback).
 
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------
-| timeout | Integer | No | 0 | A time in milliseconds after the operation automatically rejects (`0` disables the timeout).
+| secure | `boolean` | No | `false` | Connect using TLS.
+| timeout | `number` | No | `0` | Milliseconds before auto-close (`0` disables).
 
-**SMTPChannel.prototype.connect({handler, timeout})**:Promise;
+**smtp.connect({ handler, timeout }): Promise\<string | null\>**
 
-> Connects to the SMTP server and starts socket I/O activity.
-
-| Option | Type | Required | Default | Description
-|--------|------|----------|---------|------------
-| handler | Function|Promise | No | - | A method for handling SMTP server replies.
-| timeout | Integer | No | 0 | A time in milliseconds after the operation automatically rejects (`0` disables the timeout).
-
-**SMTPChannel.prototype.isLastReply(line)**:String;
-
-> A helper method which returns `true` if the provided `line` represents the last reply from the SMTP server.
+> Connects to the SMTP server and starts socket I/O.
 
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------
-| line | String | Yes | - | Server reply string.
+| handler | `(line, args) => void \| Promise<void>` | No | - | Handle SMTP server replies.
+| timeout | `number` | No | `0` | Milliseconds before reject (`0` disables).
 
-**SMTPChannel.prototype.isSecure()**:Boolean;
+**smtp.close({ timeout }): Promise\<void\>**
 
-> Returns `true` if the connection is secured over TLS.
+> Destroys the socket.
 
-**SMTPChannel.prototype.negotiateTLS(options)**:Promise;
+**smtp.write(data, { handler, timeout }): Promise\<string | null\>**
 
-> Upgrades the existing socket connection to TLS. This method should be used after sending the `STARTTLS` command. The method accepts `options` which are sent directly to the [tls.connect](https://nodejs.org/api/tls.html#tls_tls_connect_options_callback) method (existing class options are overriden). Custom options are listed below.
+> Sends data on the socket. `data` can be `string`, `Buffer`, or `stream.Readable`.
 
-| Option | Type | Required | Default | Description
-|--------|------|----------|---------|------------
-| timeout | Integer | No | 0 | A time in milliseconds after the operation automatically rejects (`0` disables the timeout).
+**smtp.negotiateTLS(config): Promise\<void\>**
 
-**SMTPChannel.prototype.parseReplyCode(line)**:String;
+> Upgrades the connection to TLS after `STARTTLS`.
 
-> A helper method which returns a reply code of the provided `line`.
+**smtp.isSecure(): boolean**
 
-| Option | Type | Required | Default | Description
-|--------|------|----------|---------|------------
-| line | String | Yes | - | Server reply string.
+> Returns `true` if connected over TLS.
 
-**SMTPChannel.prototype.write(data, {handler, timeout})**:Promise;
+**smtp.parseReplyCode(line): string | null**
 
-> Sends data on the socket.
+> Returns the reply code from a server reply line.
 
-| Option | Type | Required | Default | Description
-|--------|------|----------|---------|------------
-| data | String,Stream,Buffer | Yes | - | Data to be sent to the SMTP server. Make sure that you apply to the SMTP rules and complete lines with `\r\n`. When sending email data stream, make sure you include the `.` as the last line.
-| handler | Function,Promise | No | - | A method for handling SMTP server replies.
-| timeout | Integer | No | 0 | A time in milliseconds after the operation automatically rejects (`0` disables the timeout).
+**smtp.isLastReply(line): boolean**
 
-**Event: close**: () => {}
+> Returns `true` if the line is the last reply in a multi-line response.
 
-> Emitted once the socket is fully closed.
+**Events:** `close`, `command`, `connect`, `end`, `error`, `receive`, `reply`, `send`, `timeout`
 
-**Event: command**: (line) => {}
-
-> Emitted when a line of data is sent to the SMTP server.
-
-| Argument | Type | Description
-|----------|------|------------
-| line | String | Client command string.
-
-**Event: connect**: () => {}
-
-> Emitted when a socket connection is successfully established.
-
-**Event: end**: () => {}
-
-> Emitted when the other end of the socket sends a FIN packet. This means that the socket is about to close.
-
-**Event: error**: (error) => {}
-
-> Emitted when an error occurs. The 'close' event will be called directly following this event.
-
-| Argument | Type | Description
-|----------|------|------------
-| error | Error | Error object.
-
-**Event: receive**: (chunk) => {}
-
-> Emitted when a chunk of data is received from the SMTP server.
-
-| Argument | Type | Description
-|----------|------|------------
-| chunk | Buffer,String | A chunk of data.
-
-**Event: reply**: (line) => {}
-
-> Emitted when a new reply from the server is received.
-
-| Argument | Type | Description
-|----------|------|------------
-| line | String | SMTP server reply string.
-
-**Event: send**: (chunk) => {}
-
-> Emitted when a chunk of data is sent to the SMTP server.
-
-| Argument | Type | Description
-|----------|------|------------
-| chunk | Buffer,String | A chunk of data.
-
-**Event: timeout**: () => {}
-
-> Emitted if the socket times out from inactivity. The timeout event automatically sends the `QUIT` SMTP command.
+See [PUBLISH.md](PUBLISH.md) for release and publish instructions.
 
 ## License (MIT)
 
