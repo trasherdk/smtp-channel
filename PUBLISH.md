@@ -27,6 +27,9 @@ git push origin v1.0.0 --force
 The package must exist on npm before the CI workflow can publish. Do the initial release manually from the terminal:
 
 ```bash
+git checkout master
+git merge develop
+git push origin master
 pnpm build
 pnpm publish --access public
 ```
