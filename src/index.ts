@@ -116,10 +116,13 @@ export class SMTPChannel extends EventEmitter<SMTPChannelEvents> {
   #createSocket(
     config: net.NetConnectOpts & Record<string, unknown>,
     onConnect: () => void,
+    useTls?: boolean,
   ): net.Socket | tls.TLSSocket {
-    const isSecure = this.#config.secure || config.secure === true;
+    const isSecure =
+      useTls ?? Boolean(this.#config.secure || config.secure === true);
     const lib = isSecure ? tls : net;
-    return (lib as typeof net).connect(config as net.NetConnectOpts, onConnect);
+    const { secure: _drop, ...opts } = config as Record<string, unknown>;
+    return (lib as typeof net).connect(opts as unknown as net.NetConnectOpts, onConnect);
   }
 
   #connectAsPromised({ handler }: { handler: ConnectOptions["handler"] }): Promise<string | null> {
@@ -176,29 +179,58 @@ export class SMTPChannel extends EventEmitter<SMTPChannelEvents> {
   #negotiateTLSAsPromised(config: NegotiateTLSOptions): Promise<void> {
     return new Promise((resolve, reject) => {
       const s = this.#socket!;
+
+      // Do not let TLS handshake bytes go through the line-oriented buffer as UTF-8 text.
+      this.#receiveBuffer.drain();
+
       s.removeAllListeners("close");
       s.removeAllListeners("data");
       s.removeAllListeners("end");
       s.removeAllListeners("error");
       s.removeAllListeners("timeout");
 
-      const options = Object.assign({}, this.#config, config, {
-        socket: s,
-        secure: true,
-      });
+      // Pause so no plaintext data is delivered until tls.connect attaches (STARTTLS upgrade).
+      s.pause();
 
-      this.#socket = this.#createSocket(options, () => {
-        this.#isSecure = true;
-        this.#socket!.removeAllListeners("error");
-        this.#socket!.on("close", this.#onClose.bind(this));
-        this.#socket!.on("data", this.#onReceive.bind(this));
-        this.#socket!.on("end", this.#onEnd.bind(this));
-        this.#socket!.on("error", this.#onError.bind(this));
-        this.#socket!.on("timeout", this.#onTimeout.bind(this));
-        this.#socket!.setEncoding("utf8");
-        this.#socket!.setTimeout(this.#config.timeout);
-        resolve();
-      });
+      // TLS handshake is binary; plaintext socket had setEncoding('utf8') at connect.
+      // Clear encoding before tls.connect wraps the socket; TLSSocket gets utf8 again below.
+      // Node accepts null to reset to buffers; @types/node omits null on setEncoding.
+      if (typeof s.setEncoding === "function") {
+        (s as net.Socket & { setEncoding(encoding: BufferEncoding | null): void }).setEncoding(
+          null,
+        );
+      }
+
+      const merged = Object.assign({}, this.#config, config, {
+        socket: s,
+      }) as Record<string, unknown> & { host?: string; servername?: string };
+
+      const host = merged.host;
+      if (
+        typeof host === "string" &&
+        host.length > 0 &&
+        !net.isIP(host) &&
+        merged.servername === undefined
+      ) {
+        merged.servername = host;
+      }
+
+      this.#socket = this.#createSocket(
+        merged as net.NetConnectOpts & Record<string, unknown>,
+        () => {
+          this.#isSecure = true;
+          this.#socket!.removeAllListeners("error");
+          this.#socket!.on("close", this.#onClose.bind(this));
+          this.#socket!.on("data", this.#onReceive.bind(this));
+          this.#socket!.on("end", this.#onEnd.bind(this));
+          this.#socket!.on("error", this.#onError.bind(this));
+          this.#socket!.on("timeout", this.#onTimeout.bind(this));
+          this.#socket!.setEncoding("utf8");
+          this.#socket!.setTimeout(this.#config.timeout);
+          resolve();
+        },
+        true,
+      );
       this.#socket.on("error", reject);
     });
   }

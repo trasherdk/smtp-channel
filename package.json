@@ -1,7 +1,6 @@
 {
   "name": "@trasherdk/smtp-channel",
   "version": "1.0.0",
-  "packageManager": "pnpm@10.32.1",
   "type": "module",
   "description": "Low level SMTP communication layer.",
   "exports": {
@@ -16,8 +15,13 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "vitest run",
-    "prepublishOnly": "npm run build"
+    "test": "vitest run --exclude '**/live-mailserver.test.ts'",
+    "test:live": "vitest run tests/live-mailserver.test.ts",
+    "prepublishOnly": "npm run build",
+    "release": "bash scripts/release.sh",
+    "release:patch": "bash scripts/release.sh patch",
+    "release:minor": "bash scripts/release.sh minor",
+    "release:major": "bash scripts/release.sh major"
   },
   "engines": {
     "node": ">=22"
@@ -51,11 +55,9 @@
     "@trasherdk/promised-timeout": "1.0.0"
   },
   "devDependencies": {
-    "@types/maildev": "^0.0.7",
     "dotenv": "^17.3.1",
     "@types/node": "^25.5.0",
     "@types/smtp-server": "^3.5.12",
-    "maildev": "^2.2.1",
     "smtp-server": "^3.18.1",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"

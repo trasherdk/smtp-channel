@@ -2,6 +2,22 @@
 
 ## Releasing
 
+From the repo root, after committing your changes:
+
+```bash
+pnpm release:patch   # or release:minor / release:major
+```
+
+This runs `pnpm build` and `pnpm test`, bumps the version (`pnpm version`), pushes your branch, merges to `master` when you are not already on `master`, force-tags `v<version>`, and pushes the tag. CI publishes to npm on tag push.
+
+To bump and tag locally without pushing (finish git steps yourself):
+
+```bash
+bash scripts/release.sh patch --no-push
+```
+
+### Manual flow
+
 1. Bump the version in `package.json` and commit on your branch
 2. Merge to master, push, tag, then push the tag:
 
