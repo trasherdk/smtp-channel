@@ -7,8 +7,6 @@ import stream from "node:stream";
 import { SMTPServer } from "smtp-server";
 import { SMTPChannel } from "../src/index.js";
 
-const TEST_PORT = 1025;
-
 /** Optional: override smtp-server’s bundled localhost cert for the STARTTLS test. */
 const TLS_CERT = process.env.SMTP_TLS_CERT;
 const TLS_KEY = process.env.SMTP_TLS_KEY;
@@ -29,13 +27,25 @@ const server = new SMTPServer({
     : {}),
 });
 
+/** `0` = ephemeral port when *listening* only. Clients must use the assigned port below. */
+const LISTEN_PORT_EPHEMERAL = 0;
+let serverPort = 0;
+
 describe("SMTPChannel", () => {
   beforeAll(
     () =>
       new Promise<void>((resolve, reject) => {
         server.once("error", reject);
-        server.listen({ port: TEST_PORT, host: "127.0.0.1" }, () => {
+        server.listen({ port: LISTEN_PORT_EPHEMERAL, host: "127.0.0.1" }, () => {
           server.removeListener("error", reject);
+          const addr = server.server.address();
+          if (addr && typeof addr !== "string") {
+            serverPort = addr.port;
+          }
+          if (!serverPort) {
+            reject(new Error("could not read SMTP test server port"));
+            return;
+          }
           resolve();
         });
       }),
@@ -49,7 +59,7 @@ describe("SMTPChannel", () => {
   );
 
   it("should connect to and disconnect from the server", async () => {
-    const c = new SMTPChannel({ port: TEST_PORT, host: "127.0.0.1" });
+    const c = new SMTPChannel({ port: serverPort, host: "127.0.0.1" });
 
     const connectReplies: string[] = [];
     const connectCode = await c.connect({
@@ -65,7 +75,7 @@ describe("SMTPChannel", () => {
   });
 
   it("`write` should send data to the server", async () => {
-    const c = new SMTPChannel({ port: TEST_PORT, host: "127.0.0.1" });
+    const c = new SMTPChannel({ port: serverPort, host: "127.0.0.1" });
     await c.connect();
 
     const writeReplies: string[] = [];
@@ -82,7 +92,7 @@ describe("SMTPChannel", () => {
   });
 
   it("`write` should stream data to the server", async () => {
-    const c = new SMTPChannel({ port: TEST_PORT, host: "127.0.0.1" });
+    const c = new SMTPChannel({ port: serverPort, host: "127.0.0.1" });
     await c.connect();
 
     const command = "EHLO domain.com\r\n".split("");
@@ -106,7 +116,7 @@ describe("SMTPChannel", () => {
   });
 
   it("should upgrade the existing socket to TLS", async () => {
-    const c = new SMTPChannel({ port: TEST_PORT, host: "127.0.0.1" });
+    const c = new SMTPChannel({ port: serverPort, host: "127.0.0.1" });
     await c.connect();
     await c.write("EHLO domain.com\r\n");
     await c.write("STARTTLS\r\n");
