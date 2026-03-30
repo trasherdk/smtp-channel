@@ -46,6 +46,9 @@ describe("SMTPChannel", () => {
             reject(new Error("could not read SMTP test server port"));
             return;
           }
+          console.info(
+            `[smtp-channel tests] SMTPServer listening on 127.0.0.1:${serverPort}`,
+          );
           resolve();
         });
       }),
