@@ -15,8 +15,8 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "vitest run --exclude '**/live-mailserver.test.ts'",
-    "test:live": "vitest run tests/live-mailserver.test.ts",
+    "test": "vitest run --exclude '**/live-send.test.ts'",
+    "test:live": "vitest run tests/live-send.test.ts",
     "prepublishOnly": "npm run build",
     "release": "bash scripts/release.sh",
     "release:patch": "bash scripts/release.sh patch",
